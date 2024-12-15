@@ -28,6 +28,14 @@ pipe = DiffusionPipeline.from_pretrained("stabilityai/stable-diffusion-xl-base-1
 pipe.load_lora_weights("CiroN2022/cd-md-music")
 
 API_KEY = ""
+HUGGINGFACE = ""
+
+API_URL = "https://api-inference.huggingface.co/models/CiroN2022/cd-md-music"
+headers = {"Authorization": "Bearer " + HUGGINGFACE}
+
+def query(payload):
+    response = requests.post(API_URL, headers=headers, json=payload)
+    return response.content
 
 @app.route('/generate_music', methods=['POST'])
 def generate_music():
@@ -191,8 +199,11 @@ def generate_image():
     try:
         logging.info("Starting image generation process...")
 
-        # Generate image based on context
-        image = pipe(context).images[0]
+        # Generate image based on context using Hugging Face API
+        image_bytes = query({"inputs": context})
+
+        # Access the image with PIL.Image
+        image = Image.open(io.BytesIO(image_bytes))
 
         # Save image to a BytesIO object
         img_io = io.BytesIO()
@@ -200,7 +211,7 @@ def generate_image():
         img_io.seek(0)
 
         logging.info("Image generation completed.")
-        return send_file(img_io, mimetype='image/png', as_attachment=True, attachment_filename='generated_image.png')
+        return send_file(img_io, mimetype='image/png', as_attachment=True, download_name='generated_image.png')
     except Exception as e:
         logging.error("Error during image generation: %s", str(e))
         return jsonify({'error': f'Error during image generation: {str(e)}'}), 500
